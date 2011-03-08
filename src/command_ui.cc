@@ -514,6 +514,19 @@ apply_elapsed_greater(const torrent::Object::list_type& args) {
   return (int64_t)(start_time != 0 && rak::timer::current_seconds() - start_time > rpc::convert_to_value(args.back()));
 }
 
+torrent::Object
+cmd_ui_get_wideui() {
+  return control->ui()->get_wideui();
+}
+
+torrent::Object
+cmd_ui_set_wideui(const torrent::Object& rawArgs) {
+  int64_t arg = rawArgs.as_value();
+  control->ui()->set_wideui(arg);
+  return torrent::Object();
+}
+
+
 void
 initialize_command_ui() {
   CMD2_VAR_STRING("keys.layout", "qwerty");
@@ -548,6 +561,9 @@ initialize_command_ui() {
   // Commands that affect the default rtorrent UI.
   CMD2_DL        ("ui.unfocus_download",   std::bind(&cmd_ui_unfocus_download, std::placeholders::_1));
   CMD2_ANY_STRING("ui.current_view.set",   std::bind(&cmd_ui_set_view, std::placeholders::_2));
+
+  CMD2_ANY       ("ui.wideui",             std::bind(&cmd_ui_get_wideui));
+  CMD2_ANY_VALUE ("ui.wideui.set",         std::bind(&cmd_ui_set_wideui, std::placeholders::_2));
 
   // Move.
   CMD2_ANY("print", &apply_print);

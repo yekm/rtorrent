@@ -61,6 +61,7 @@
 #include "control.h"
 #include "globals.h"
 #include "utils.h"
+#include <torrent/peer/peer_list.h>
 
 namespace display {
 
@@ -130,6 +131,74 @@ print_address(char* first, char* last, const sockaddr* sa) {
 char*
 print_download_title(char* first, char* last, core::Download* d) {
   return print_buffer(first, last, " %s", d->info()->name().c_str());
+}
+
+char*
+print_download_info_wide(char* first, char* last, core::Download* d) {
+  if (!d->download()->info()->is_open())
+    first = print_buffer(first, last, " X ");
+  else
+    if (!d->download()->info()->is_active())
+      first = print_buffer(first, last, " ! ");
+    else
+      first = print_buffer(first, last, "   ");
+
+  if (d->is_done())
+    first = print_buffer(first, last, "     %12.1f", (double)d->download()->file_list()->size_bytes() / (double)(1 << 20));
+  else
+    first = print_buffer(first, last, "%8.1f %8.1f",
+                         (double)d->download()->bytes_done() / (double)(1 << 20),
+                         (double)d->download()->file_list()->size_bytes() / (double)(1 << 20));
+
+  first = print_buffer(first, last, " ");
+  // print_download_percentage_done_wide
+  if (!d->is_open() || d->is_done())
+    first = print_buffer(first, last, "   ");
+  else
+    first = print_buffer(first, last, "%2u%%", (d->download()->file_list()->completed_chunks() * 100) / d->download()->file_list()->size_chunks());
+
+  if (d->info()->up_rate()->rate() != 0)
+    first = print_buffer(first, last, " %7.3f", (double)d->info()->up_rate()->rate() / (1 << 20));
+  else
+    first = print_buffer(first, last, "        ");
+  if (d->info()->down_rate()->rate() != 0)
+    first = print_buffer(first, last, " %7.3f", (double)d->info()->down_rate()->rate() / (1 << 20));
+  else
+    first = print_buffer(first, last, "        ");
+
+/*  first = print_buffer(first, last, " %7.3f %7.3f",
+                       (double)d->info()->up_rate()->rate() / (1 << 20),
+                       (double)d->info()->down_rate()->rate() / (1 << 20));
+*/
+  first = print_buffer(first, last, " %9.1f", (double)d->info()->up_rate()->total() / (1 << 20));
+
+  first = print_buffer(first, last, " %6.1f", (double)rpc::call_command_value("d.ratio", rpc::make_target(d)) / 1000.);
+
+  first = print_buffer(first, last, " %4.i/%4.i", d->download()->connection_list()->size(), d->download()->peer_list()->available_list_size());
+
+  if (d->download()->info()->is_active() && !d->is_done()) {
+    first = print_buffer(first, last, " ");
+    first = print_download_time_left(first, last, d);
+  } else {
+    first = print_buffer(first, last, "          ");
+  }
+
+  first = print_buffer(first, last, " %c%c",
+                       rpc::call_command_string("d.tied_to_file", rpc::make_target(d)).empty() ? ' ' : 'T',
+                       rpc::call_command_value("d.ignore_commands", rpc::make_target(d)) == 0 ? ' ' : 'I');
+
+  if (d->priority() != 2) {
+    print_buffer(first, last, "%s", rpc::call_command_string("d.priority_str", rpc::make_target(d)).c_str());
+    *(++first) = '\0'; // no need to print full string "high" or "low"
+  }
+
+  if (!d->bencode()->get_key("rtorrent").get_key_string("throttle_name").empty())
+    first = print_buffer(first, last , " %s", rpc::call_command_string("d.throttle_name", rpc::make_target(d)).c_str());
+
+  if (first > last)
+    throw torrent::internal_error("print_download_info(...) wrote past end of the buffer.");
+
+  return first;
 }
 
 char*

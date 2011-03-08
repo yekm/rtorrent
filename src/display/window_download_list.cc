@@ -45,6 +45,7 @@
 #include "globals.h"
 #include "utils.h"
 #include "window_download_list.h"
+#include "rpc/parse_commands.h"
 
 namespace display {
 
@@ -87,34 +88,79 @@ WindowDownloadList::redraw() {
 
   typedef std::pair<core::View::iterator, core::View::iterator> Range;
 
-  Range range = rak::advance_bidirectional(m_view->begin_visible(),
-                                           m_view->focus() != m_view->end_visible() ? m_view->focus() : m_view->begin_visible(),
-                                           m_view->end_visible(),
-                                           m_canvas->height() / 3);
+  if (rpc::call_command_value("ui.wideui") != 0) {
+    const int info_width = 85;
+    const int title_width = std::max(std::min(static_cast<int>(m_canvas->width()) - info_width, 60), 5); // max=60, min=5
 
-  // Make sure we properly fill out the last lines so it looks like
-  // there are more torrents, yet don't hide it if we got the last one
-  // in focus.
-  if (range.second != m_view->end_visible())
-    ++range.second;
+    Range range = rak::advance_bidirectional(m_view->begin_visible(),
+                                             m_view->focus() != m_view->end_visible() ? m_view->focus() : m_view->begin_visible(),
+                                             m_view->end_visible(),
+                                             m_canvas->height() - 2);
 
-  int pos = 1;
+    m_canvas->print(0, 1, "Torrent name");
+    m_canvas->print(title_width, 1, "      dl-ed      all   %%      up    down     up-ed  ratio     peers      left info");
+    m_canvas->print(title_width + info_width, 1, "status");
 
-  while (range.first != range.second) {
-    char buffer[m_canvas->width() + 1];
-    char* last = buffer + m_canvas->width() - 2 + 1;
+    int pos = 2;
 
-    print_download_title(buffer, last, *range.first);
-    m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
-    
-    print_download_info(buffer, last, *range.first);
-    m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
+    while (range.first != range.second) {
 
-    print_download_status(buffer, last, *range.first);
-    m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
+      m_canvas->print(0, pos, "%c%s", range.first == m_view->focus() ? '*' : ' ', (*range.first)->info()->name().c_str());
 
-    ++range.first;
-  }    
+      char info[info_width];
+      print_download_info_wide(info, info + info_width, *range.first);
+      m_canvas->print(title_width, pos, "%s", info);
+
+      if (title_width + info_width < m_canvas->width()) { // check space for status
+        const int status_width = 200;
+        char status[status_width];
+        print_download_status(status, status + status_width, *range.first);
+        if (title_width + info_width + status_width > m_canvas->width()) // truncate status
+            status[m_canvas->width() - title_width - info_width] = '\0';
+        m_canvas->print(title_width + info_width, pos, "%s", status);
+      }
+
+      if (range.first == m_view->focus())
+        m_canvas->set_attr(0, pos, m_canvas->width(), A_UNDERLINE, 0);
+      else
+        m_canvas->set_attr(0, pos, m_canvas->width(), A_NORMAL, 0);
+
+      pos++;
+      ++range.first;
+    }
+  }
+  else {
+
+    Range range = rak::advance_bidirectional(m_view->begin_visible(),
+                                             m_view->focus() != m_view->end_visible() ? m_view->focus() : m_view->begin_visible(),
+                                             m_view->end_visible(),
+                                             m_canvas->height() / 3);
+
+    // Make sure we properly fill out the last lines so it looks like
+    // there are more torrents, yet don't hide it if we got the last one
+    // in focus.
+    if (range.second != m_view->end_visible())
+      ++range.second;
+
+    int pos = 1;
+
+    while (range.first != range.second) {
+      char buffer[m_canvas->width() + 1];
+      char* position;
+      char* last = buffer + m_canvas->width() - 2 + 1;
+
+      position = print_download_title(buffer, last, *range.first);
+      m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
+
+      position = print_download_info(buffer, last, *range.first);
+      m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
+
+      position = print_download_status(buffer, last, *range.first);
+      m_canvas->print(0, pos++, "%c %s", range.first == m_view->focus() ? '*' : ' ', buffer);
+
+      ++range.first;
+    }
+  }
 }
 
 }

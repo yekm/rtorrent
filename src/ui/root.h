@@ -93,6 +93,10 @@ public:
 
   input::TextInput*   current_input();
 
+  int                 get_wideui() { return m_wideui; }
+  void                set_wideui(int enabled) { m_wideui = enabled; }
+
+
 private:
   void                setup_keys();
 
@@ -105,6 +109,8 @@ private:
   WStatusbar*         m_windowStatusbar;
 
   input::Bindings     m_bindings;
+
+  int                 m_wideui;
 };
 
 }

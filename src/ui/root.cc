@@ -65,7 +65,8 @@ Root::Root() :
   m_windowTitle(NULL),
   m_windowHttpQueue(NULL),
   m_windowInput(NULL),
-  m_windowStatusbar(NULL) {
+  m_windowStatusbar(NULL),
+  m_wideui(0) {
 }
 
 void
